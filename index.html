@@ -88,6 +88,23 @@
     const usr = sessionStorage.getItem('currentUser');
     const role = sessionStorage.getItem('role');
     if (!usr) location = 'login.html';
+    
+    // Inisialisasi struktur data
+    const initAccounts = () => {
+      if (!localStorage.getItem('altravpn-accounts')) {
+        localStorage.setItem('altravpn-accounts', JSON.stringify({
+          ssh: [],
+          vmess: [],
+          vless: [],
+          trojan: []
+        }));
+      }
+    };
+    initAccounts();
+    
+    const getAccounts = () => JSON.parse(localStorage.getItem('altravpn-accounts') || {});
+    const setAccounts = o => localStorage.setItem('altravpn-accounts', JSON.stringify(o));
+    
     let currentTab = 'home';
     function switchTab(tab) {
       currentTab = tab;
@@ -99,8 +116,6 @@
       render();
     }
 
-    const getAccounts = () => JSON.parse(localStorage.getItem('accounts') || '{}');
-    const setAccounts = o => localStorage.setItem('accounts', JSON.stringify(o));
     function buildForm() {
       const wrap = document.getElementById('dynamicFields');
       wrap.innerHTML = '';
@@ -246,7 +261,10 @@
 
       document.getElementById('homeWrap').innerHTML = '';
 
-      (data[currentTab] || []).forEach((a, i) => {
+      // Pastikan ada array untuk tab yang aktif
+      if (!data[currentTab]) data[currentTab] = [];
+      
+      data[currentTab].forEach((a, i) => {
         const card = document.createElement('div');
         card.className = 'card';
         const statusValue = a.status || 'aktif';
@@ -326,29 +344,61 @@
     function addAccount(e) {
       e.preventDefault();
       const data = getAccounts();
-      data[currentTab] = data[currentTab] || [];
+      
+      // Pastikan array untuk tab saat ini ada
+      if (!data[currentTab]) data[currentTab] = [];
+      
       const obj = {};
       document.querySelectorAll('#dynamicFields input, #dynamicFields select').forEach(inp => {
         obj[inp.id] = inp.value.trim();
       });
+      
       if (!obj.status) obj.status = 'aktif';
+      
+      // Tambahkan timestamp unik sebagai ID
+      obj.id = Date.now().toString();
+      
       data[currentTab].push(obj);
       setAccounts(data);
-      e.target.reset();
+      
+      // Reset form hanya untuk field tertentu
+      document.querySelectorAll('#dynamicFields input').forEach(inp => {
+        if (inp.id !== 'status') inp.value = '';
+      });
+      
       render();
     }
 
     function logout() {
-      const list = (JSON.parse(localStorage.getItem('onlineUsers') || '[]')).filter(x => x !== usr);
-      localStorage.setItem('onlineUsers', JSON.stringify(list));
+      const u = sessionStorage.getItem("currentUser");
+      if (u && u !== "altra") {
+        let list = JSON.parse(sessionStorage.getItem("onlineUsers") || "[]");
+        list = list.filter(x => x !== u);
+        sessionStorage.setItem("onlineUsers", JSON.stringify(list));
+        
+        // Broadcast perubahan
+        localStorage.setItem("onlineUsers", JSON.stringify(list));
+        localStorage.removeItem("onlineUsers");
+      }
+      
       sessionStorage.clear();
       location = 'login.html';
     }
 
     window.addEventListener('beforeunload', () => {
-      const list = (JSON.parse(localStorage.getItem('onlineUsers') || '[]')).filter(x => x !== usr);
-      localStorage.setItem('onlineUsers', JSON.stringify(list));
+      const u = sessionStorage.getItem("currentUser");
+      if (!u || u === "altra") return;
+      
+      let list = JSON.parse(sessionStorage.getItem("onlineUsers") || "[]");
+      list = list.filter(x => x !== u);
+      sessionStorage.setItem("onlineUsers", JSON.stringify(list));
+      
+      // Broadcast perubahan
+      localStorage.setItem("onlineUsers", JSON.stringify(list));
+      localStorage.removeItem("onlineUsers");
     });
+    
+    // Jam real-time
     setInterval(() => {
       const now = new Date();
       const jam = now.getHours().toString().padStart(2, '0');
@@ -357,6 +407,8 @@
       const elemenJam = document.getElementById('clock');
       if (elemenJam) elemenJam.textContent = `${jam}:${menit}:${detik}`;
     }, 1000);
+    
+    // Inisialisasi
     if (role === 'admin' && currentTab !== 'home') buildForm();
     render();
   </script>
