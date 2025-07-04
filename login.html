@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALTRAVPN • Login</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:sans-serif;
+      background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+      height:100vh;display:flex;justify-content:center;align-items:center;color:#fff
+    }
+    .card{background:rgba(255,255,255,.08);backdrop-filter:blur(8px);
+      padding:2rem;border-radius:10px;width:320px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+    h1{text-align:center;margin-bottom:1rem}
+    input{width:100%;padding:.6rem;margin:.4rem 0;border:none;border-radius:4px;background:#fff;color:#000}
+    button{width:100%;padding:.7rem;border:none;border-radius:4px;background:#28a745;color:#fff;font-weight:bold;cursor:pointer;transition:.3s}
+    button:hover{background:#218838}
+    .bar-wrap{margin:1rem 0}
+    .bar{height:10px;background:#ddd;border-radius:5px;overflow:hidden}
+    .bar-fill{height:100%;background:#17c671;width:0;transition:width .3s}
+    small{display:block;text-align:center;margin-top:.3rem;font-size:.8em;color:#eee}
+    .msg{display:none;text-align:center;margin-top:.6rem;padding:.4rem;border-radius:4px;background:#ffc107;color:#000;font-size:.9em}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Login ALTRAVPN</h1>
+    <form onsubmit="login(event)">
+      <input id="username" placeholder="Username" autocomplete="username" required />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <button type="submit">Masuk</button>
+    </form>
+
+    <div class="bar-wrap">
+      <div class="bar"><div class="bar-fill" id="slotFill"></div></div>
+      <small id="slotText">0 / 10 user online</small>
+    </div>
+
+    <p style="font-size:.8em;text-align:center;color:#ccc">
+        Login : <code>user1</code>–<code>user10</code></p> 
+    <p style="font-size:.8em;text-align:center;color:#ccc">
+        Password : <code>makasihganteng</code>
+    </p>
+
+    <div class="msg" id="msg"></div>
+  </div>
+
+<script>
+const PASS="makasihganteng",MAX_USER=10;
+const slotFill=document.getElementById("slotFill"),slotText=document.getElementById("slotText"),msg=document.getElementById("msg");
+
+const getList=()=>JSON.parse(localStorage.getItem("onlineUsers")||"[]");
+const setList=arr=>localStorage.setItem("onlineUsers",JSON.stringify(arr));
+function updateBar(){const list=getList();slotFill.style.width=`${list.length/MAX_USER*100}%`;slotText.textContent=`${list.length} / ${MAX_USER} user online`;}
+window.addEventListener("storage",updateBar);updateBar();
+
+function login(e){
+  e.preventDefault();
+  const u=document.getElementById("username").value.trim().toLowerCase();
+  const p=document.getElementById("password").value;
+  let role=null,list=getList();
+
+  if(u==="altra"){ // admin, no password, no slot
+    role="admin";
+  }else if(/^user([1-9]|10)$/.test(u) && p===PASS){
+    role="user";
+    if(list.includes(u)){return showMsg("❌ Username sedang digunakan.");}
+    if(list.length>=MAX_USER){return showMsg("❌ Slot penuh. Coba lagi nanti.");}
+    list.push(u); setList(list); updateBar();
+  }else{
+    return showMsg("❌ Username / password salah.");
+  }
+
+  sessionStorage.setItem("currentUser",u);
+  sessionStorage.setItem("role",role);
+  window.location="dashboard.html";
+}
+function showMsg(t){msg.textContent=t;msg.style.display="block";}
+
+/* keluarkan dari slot saat tab ditutup */
+window.addEventListener("beforeunload",()=>{
+  const u=sessionStorage.getItem("currentUser");if(!u||u==="altra")return;
+  setList(getList().filter(x=>x!==u));
+});
+</script>
+</body>
+</html>

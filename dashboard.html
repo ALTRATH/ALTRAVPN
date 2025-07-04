@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALTRAVPN</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:sans-serif;background:#111;color:#fff;overflow-x:hidden;transition:.3s}
+    header{background:#000;display:flex;align-items:center;justify-content:center;padding:1rem;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+    .brand{font-family:'Orbitron',sans-serif;font-size:1.8rem;font-weight:900;background:linear-gradient(45deg,#ff0066,#6600ff,#00ccff,#00ffcc);background-size:300%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shine 6s linear infinite}
+    @keyframes shine{0%{background-position:0%}100%{background-position:300%}}
+    main{max-width:900px;margin:auto;padding:1rem;animation:fadeIn .5s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    nav{display:flex;justify-content:space-around;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
+    nav button{flex:1;background:#222;color:#fff;border:none;border-radius:6px;padding:.5rem 0;font-weight:bold;cursor:pointer;font-size:.85rem;transition:background .3s}
+    nav button:hover{background:#333}
+    nav button.active{background:#444}
+    .form,.card{background:#1c1c1c;padding:1rem;border-radius:10px;margin:.6rem 0;box-shadow:0 2px 8px rgba(0,0,0,.3);transition:.3s}
+    input,select,button,textarea{width:100%;padding:.5rem;margin:.3rem 0;font-size:1rem;border:none;border-radius:6px}
+    input,select,textarea{background:#fff;color:#000}
+    .del{position:absolute;right:10px;top:10px;background:#dc3545;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:.75rem;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .hidden{display:none}
+    footer{position:fixed;bottom:12px;right:12px;z-index:100}
+    .logout-btn{background:#c0392b;border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:.7rem;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,.4);transition:background .3s}
+    .logout-btn:hover{background:#e74c3c}
+   
+    img,iframe,video{max-width:100%;border-radius:8px;margin-top:1rem;display:block;margin:1rem auto}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem}
+    .card:hover{transform:translateY(-4px);box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+    .copy-btn{background:#3498db;color:#fff;border:none;padding:4px 8px;font-size:.7rem;border-radius:6px;margin-top:0.5rem;cursor:pointer;transition:background .3s}
+    .copy-btn:hover{background:#2980b9}
+    @keyframes blink{0%{opacity:.2}100%{opacity:1}}
+    .status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;animation:blink 1s linear infinite}
+    .status-dot.active{background:#0f0}
+    .status-dot.inactive{background:#f00}
+    
+    /* New styles for media centering */
+    .media-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 1rem 0;
+      max-width: 100%;
+    }
+    .media-container img,
+    .media-container video,
+    .media-container audio,
+    .media-container iframe {
+      max-width: 100%;
+      max-height: 50vh;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">ALTRAVPN</span>
+    <span id="clock" style="margin-left:auto;font-size:1rem;color:#fff;font-family:monospace">00:00:00</span>
+  </header>
+  <main>
+    <nav>
+      <button onclick="switchTab('home')" id="tab-home" class="active">Home</button>
+      <button onclick="switchTab('ssh')" id="tab-ssh">SSH</button>
+      <button onclick="switchTab('vmess')" id="tab-vmess">VMess</button>
+      <button onclick="switchTab('vless')" id="tab-vless">VLess</button>
+      <button onclick="switchTab('trojan')" id="tab-trojan">Trojan</button>
+    </nav>
+    <div id="homeWrap"></div>
+    <form id="addForm" class="form hidden" onsubmit="addAccount(event)">
+      <h3>Tambah Akun <span id="formTitle"></span></h3>
+      <div class="grid">
+        <label><input type="radio" name="inputMode" value="manual" checked onchange="toggleInputMode()"> Manual</label>
+        <label><input type="radio" name="inputMode" value="auto" onchange="toggleInputMode()"> Tempel Otomatis</label>
+      </div>
+      <textarea id="rawInput" class="hidden" placeholder="Tempel link akun VMESS/VLESS/TROJAN di sini..."></textarea>
+      <div id="dynamicFields" class="grid"></div>
+      <button type="submit">Simpan</button>
+    </form>
+    <section id="listWrap"></section>
+  </main>
+  <footer><button class="logout-btn" onclick="logout()">Logout</button></footer>
+
+  <script>
+    const usr = sessionStorage.getItem('currentUser');
+    const role = sessionStorage.getItem('role');
+    if (!usr) location = 'login.html';
+    let currentTab = 'home';
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      const isAddVisible = (role === 'admin' && tab !== 'home');
+      document.getElementById('addForm').classList.toggle('hidden', !isAddVisible);
+      if (isAddVisible) buildForm();
+      render();
+    }
+
+    const getAccounts = () => JSON.parse(localStorage.getItem('accounts') || '{}');
+    const setAccounts = o => localStorage.setItem('accounts', JSON.stringify(o));
+    function buildForm() {
+      const wrap = document.getElementById('dynamicFields');
+      wrap.innerHTML = '';
+      let fields = ['label'];
+      if (currentTab === 'ssh') fields = fields.concat(['host', 'username', 'password', 'port']);
+      else if (currentTab === 'vmess') fields = fields.concat(['server', 'port', 'uuid', 'alterId']);
+      else if (currentTab === 'vless') fields = fields.concat(['server', 'port', 'uuid']);
+      else if (currentTab === 'trojan') fields = fields.concat(['server', 'port', 'password']);
+      fields = fields.concat(['expired', 'status', 'raw']);
+
+      document.getElementById('formTitle').textContent = currentTab.toUpperCase();
+      fields.forEach(f => {
+        if (f === 'status') {
+          const sel = document.createElement('select');
+          sel.id = 'status';
+          ['aktif','nonaktif'].forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v; opt.textContent = v.charAt(0).toUpperCase() + v.slice(1);
+            sel.appendChild(opt);
+          });
+          wrap.appendChild(sel);
+        } else {
+          const inp = document.createElement('input');
+          inp.id = f;
+          inp.name = f;
+          inp.placeholder = f === 'label' ? 'Nama Akun (Label)' : f.charAt(0).toUpperCase() + f.slice(1);
+          if (f === 'expired') inp.type = 'date';
+          else if (f === 'password') inp.type = 'password';
+          wrap.appendChild(inp);
+        }
+      });
+    }
+
+    function toggleInputMode() {
+      const mode = document.querySelector('input[name="inputMode"]:checked').value;
+      const rawInput = document.getElementById('rawInput');
+      const fieldWrap = document.getElementById('dynamicFields');
+      rawInput.classList.toggle('hidden', mode !== 'auto');
+      fieldWrap.classList.toggle('hidden', mode === 'auto');
+      if (mode === 'auto') rawInput.addEventListener('input', handlePasteAuto);
+      else rawInput.removeEventListener('input', handlePasteAuto);
+    }
+
+    function handlePasteAuto() {
+      const raw = document.getElementById('rawInput').value.trim();
+      if (!raw) return;
+      let parsed = {};
+      try {
+        if (raw.startsWith('vmess://')) {
+          const decoded = atob(raw.split('vmess://')[1]);
+          const json = JSON.parse(decoded);
+          parsed = { label: json.ps || '', server: json.add, port: json.port, uuid: json.id, alterId: json.aid || '', expired: '', status: 'aktif', raw };
+          currentTab = 'vmess';
+        } else if (raw.startsWith('vless://')) {
+          const [, body] = raw.split('vless://');
+          const [info] = body.split('?');
+          const [uuid, rest] = info.split('@');
+          const [server, port] = rest.split(':');
+          parsed = { label: '', server, port, uuid, expired: '', status: 'aktif', raw };
+          currentTab = 'vless';
+        } else if (raw.startsWith('trojan://')) {
+          const [, body] = raw.split('trojan://');
+          const [info] = body.split('?');
+          const [password, rest] = info.split('@');
+          const [server, port] = rest.split(':');
+          parsed = { label: '', server, port, password, expired: '', status: 'aktif', raw };
+          currentTab = 'trojan';
+        } else {
+          alert('Format tidak dikenali!');
+          return;
+        }
+        switchTab(currentTab);
+        fillForm(parsed);
+      } catch (e) {
+        alert('Gagal mengurai akun.');
+      }
+    }
+
+    function fillForm(obj) {
+      setTimeout(() => {
+        for (const [k, v] of Object.entries(obj)) {
+          const field = document.getElementById(k);
+          if (field) field.value = v;
+        }
+      }, 300);
+    }
+
+    function saveHome() {
+      const teks = document.getElementById('homeText').value.trim();
+      const media = document.getElementById('homeMedia').value.trim();
+      localStorage.setItem('homeText', teks);
+      localStorage.setItem('homeMedia', media);
+      render();
+    }
+
+    function render() {
+      const data = getAccounts();
+      const wrap = document.getElementById('listWrap');
+      wrap.innerHTML = '';
+
+      if (currentTab === 'home') {
+        const homeWrap = document.getElementById('homeWrap');
+        const text = localStorage.getItem('homeText') || 'Selamat datang di ALTRAVPN!';
+        const media = localStorage.getItem('homeMedia') || '';
+        let html = `<div class='form'><h3 style='text-align:center'>${text}</h3>`;
+
+        if (media) {
+          const lower = media.toLowerCase();
+          html += `<div class="media-container">`;
+          
+          if (lower.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+            html += `<img src="${media}" alt="Gambar">`;
+          } else if (lower.match(/\.(mp4|webm|ogg|gifv)$/)) {
+            html += `<video controls autoplay loop muted playsinline src="${media}"></video>`;
+          } else if (lower.match(/\.(mp3|wav|m4a)$/)) {
+            html += `<audio controls src="${media}"></audio>`;
+          } else if (media.includes('youtube.com/watch?v=') || media.includes('youtu.be/')) {
+            let id = '';
+            if (media.includes('watch?v=')) {
+              id = media.split('watch?v=')[1].split('&')[0];
+            } else if (media.includes('youtu.be/')) {
+              id = media.split('youtu.be/')[1].split('?')[0];
+            }
+            html += `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1" height="315" allowfullscreen></iframe>`;
+          } else {
+            html += `<iframe src="${media}" height="300" style="width:100%" allowfullscreen sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+          }
+          
+          html += `</div>`;
+        }
+
+        if (role === 'admin') {
+          html += `
+            <textarea id='homeText' placeholder='Teks Selamat Datang'>${text}</textarea>
+            <input id='homeMedia' placeholder='URL Media (Gambar, YouTube, Pinterest, Website...)' value='${media}' />
+            <button onclick='saveHome()'>Simpan Home</button>
+          `;
+        }
+
+        homeWrap.innerHTML = html + '</div>';
+        return;
+      }
+
+      document.getElementById('homeWrap').innerHTML = '';
+
+      (data[currentTab] || []).forEach((a, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const statusValue = a.status || 'aktif';
+        const statusClass = statusValue === 'aktif' ? 'active' : 'inactive';
+        
+        // Determine server name with flag emoji
+        const serverName = a.label || a.server || a.host || '(Tanpa Nama)';
+        card.innerHTML = `<h4 style="margin-bottom:.3rem">${serverName}<span class="status-dot ${statusClass}"></span></h4>`;
+        
+        // Field labels mapping
+        const fieldLabels = {
+          host: 'HOST',
+          server: 'HOST',
+          username: 'USERNAME',
+          password: 'PASSWORD',
+          port: 'PORT',
+          expired: 'EXPIRED',
+          status: 'STATUS',
+          uuid: 'UUID',
+          alterId: 'ALTER ID',
+          raw: 'RAW'
+        };
+
+        for (const [k, v] of Object.entries(a)) {
+          // Skip label and raw for SSH
+          if (k === 'label' || (k === 'raw' && currentTab === 'ssh')) continue;
+          
+          const displayKey = fieldLabels[k] || k.toUpperCase();
+          
+          if (k === 'raw' && v.startsWith(currentTab + '://')) {
+            card.innerHTML += `<strong>${displayKey}:</strong><br><textarea readonly style="width:100%;background:#000;color:#0f0;padding:.5rem;border-radius:6px;margin-top:5px">${v}</textarea><br>`;
+          } else {
+            card.innerHTML += `<strong>${displayKey}:</strong> ${v}<br>`;
+          }
+        }
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.textContent = 'Salin';
+        copyBtn.onclick = () => {
+          let text = '';
+          
+          // Server name
+          text += `SERVER: ${serverName}\n`;
+          
+          // Other fields
+          for (const [k, v] of Object.entries(a)) {
+            if (k === 'label' || (k === 'raw' && currentTab === 'ssh')) continue;
+            
+            const displayKey = fieldLabels[k] || k.toUpperCase();
+            text += `${displayKey}: ${v}\n`;
+          }
+          
+          navigator.clipboard.writeText(text).then(() => {
+            copyBtn.textContent = 'Disalin!';
+            setTimeout(() => copyBtn.textContent = 'Salin', 1000);
+          });
+        };
+        card.appendChild(copyBtn);
+
+        if (role === 'admin') {
+          const del = document.createElement('button');
+          del.className = 'del';
+          del.textContent = '×';
+          del.onclick = () => {
+            data[currentTab].splice(i, 1);
+            setAccounts(data);
+            render();
+          };
+          card.appendChild(del);
+        }
+
+        wrap.appendChild(card);
+      });
+    }
+
+    function addAccount(e) {
+      e.preventDefault();
+      const data = getAccounts();
+      data[currentTab] = data[currentTab] || [];
+      const obj = {};
+      document.querySelectorAll('#dynamicFields input, #dynamicFields select').forEach(inp => {
+        obj[inp.id] = inp.value.trim();
+      });
+      if (!obj.status) obj.status = 'aktif';
+      data[currentTab].push(obj);
+      setAccounts(data);
+      e.target.reset();
+      render();
+    }
+
+    function logout() {
+      const list = (JSON.parse(localStorage.getItem('onlineUsers') || '[]')).filter(x => x !== usr);
+      localStorage.setItem('onlineUsers', JSON.stringify(list));
+      sessionStorage.clear();
+      location = 'login.html';
+    }
+
+    window.addEventListener('beforeunload', () => {
+      const list = (JSON.parse(localStorage.getItem('onlineUsers') || '[]')).filter(x => x !== usr);
+      localStorage.setItem('onlineUsers', JSON.stringify(list));
+    });
+    setInterval(() => {
+      const now = new Date();
+      const jam = now.getHours().toString().padStart(2, '0');
+      const menit = now.getMinutes().toString().padStart(2, '0');
+      const detik = now.getSeconds().toString().padStart(2, '0');
+      const elemenJam = document.getElementById('clock');
+      if (elemenJam) elemenJam.textContent = `${jam}:${menit}:${detik}`;
+    }, 1000);
+    if (role === 'admin' && currentTab !== 'home') buildForm();
+    render();
+  </script>
+</body>
+</html>
