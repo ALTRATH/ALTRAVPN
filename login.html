@@ -51,16 +51,29 @@
 const PASS="makasihganteng",MAX_USER=10;
 const slotFill=document.getElementById("slotFill"),slotText=document.getElementById("slotText"),msg=document.getElementById("msg");
 
-const getList=()=>JSON.parse(localStorage.getItem("onlineUsers")||"[]");
-const setList=arr=>localStorage.setItem("onlineUsers",JSON.stringify(arr));
-function updateBar(){const list=getList();slotFill.style.width=`${list.length/MAX_USER*100}%`;slotText.textContent=`${list.length} / ${MAX_USER} user online`;}
-window.addEventListener("storage",updateBar);updateBar();
+// Gunakan sessionStorage untuk tracking user online
+const getOnlineUsers = () => {
+  const users = JSON.parse(sessionStorage.getItem("onlineUsers") || "[]");
+  return Array.isArray(users) ? users : [];
+};
+
+function updateBar(){
+  const list = getOnlineUsers();
+  slotFill.style.width=`${list.length/MAX_USER*100}%`;
+  slotText.textContent=`${list.length} / ${MAX_USER} user online`;
+}
+
+// Sinkronisasi antar tab
+window.addEventListener("storage", (e) => {
+  if (e.key === "onlineUsers") updateBar();
+});
+updateBar();
 
 function login(e){
   e.preventDefault();
   const u=document.getElementById("username").value.trim().toLowerCase();
   const p=document.getElementById("password").value;
-  let role=null,list=getList();
+  let role=null,list=getOnlineUsers();
 
   if(u==="altra"){ // admin, no password, no slot
     role="admin";
@@ -68,7 +81,12 @@ function login(e){
     role="user";
     if(list.includes(u)){return showMsg("❌ Username sedang digunakan.");}
     if(list.length>=MAX_USER){return showMsg("❌ Slot penuh. Coba lagi nanti.");}
-    list.push(u); setList(list); updateBar();
+    list.push(u); 
+    sessionStorage.setItem("onlineUsers", JSON.stringify(list));
+    
+    // Broadcast ke tab lain
+    localStorage.setItem("onlineUsers", JSON.stringify(list));
+    localStorage.removeItem("onlineUsers");
   }else{
     return showMsg("❌ Username / password salah.");
   }
@@ -77,12 +95,18 @@ function login(e){
   sessionStorage.setItem("role",role);
   window.location="index.html";
 }
-function showMsg(t){msg.textContent=t;msg.style.display="block";}
+function showMsg(t){msg.textContent=t;msg.style.display="block";setTimeout(()=>msg.style.display="none",3000);}
 
-/* keluarkan dari slot saat tab ditutup */
+// Keluarkan dari slot saat tab ditutup
 window.addEventListener("beforeunload",()=>{
   const u=sessionStorage.getItem("currentUser");if(!u||u==="altra")return;
-  setList(getList().filter(x=>x!==u));
+  let list=getOnlineUsers();
+  list = list.filter(x=>x!==u);
+  sessionStorage.setItem("onlineUsers",JSON.stringify(list));
+  
+  // Broadcast perubahan
+  localStorage.setItem("onlineUsers",JSON.stringify(list));
+  localStorage.removeItem("onlineUsers");
 });
 </script>
 </body>
