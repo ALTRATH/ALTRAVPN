@@ -51,62 +51,83 @@
 const PASS="makasihganteng",MAX_USER=10;
 const slotFill=document.getElementById("slotFill"),slotText=document.getElementById("slotText"),msg=document.getElementById("msg");
 
-// Gunakan sessionStorage untuk tracking user online
+// Fungsi untuk mendapatkan daftar user online dari localStorage
 const getOnlineUsers = () => {
-  const users = JSON.parse(sessionStorage.getItem("onlineUsers") || "[]");
+  const users = JSON.parse(localStorage.getItem('onlineUsers') || '[]');
   return Array.isArray(users) ? users : [];
 };
 
-function updateBar(){
-  const list = getOnlineUsers();
-  slotFill.style.width=`${list.length/MAX_USER*100}%`;
-  slotText.textContent=`${list.length} / ${MAX_USER} user online`;
+// Fungsi untuk menyimpan daftar user online
+const setOnlineUsers = (users) => {
+  localStorage.setItem('onlineUsers', JSON.stringify(users));
+  // Trigger event untuk sinkronisasi tab lain
+  localStorage.setItem('onlineUsersSync', JSON.stringify(users));
+  localStorage.removeItem('onlineUsersSync');
+};
+
+// Update progress bar
+function updateBar() {
+  const users = getOnlineUsers();
+  const count = users.length;
+  slotFill.style.width = `${count/MAX_USER*100}%`;
+  slotText.textContent = `${count} / ${MAX_USER} user online`;
 }
 
-// Sinkronisasi antar tab
-window.addEventListener("storage", (e) => {
-  if (e.key === "onlineUsers") updateBar();
+// Event listener untuk sinkronisasi antar tab
+window.addEventListener('storage', (e) => {
+  if (e.key === 'onlineUsers' || e.key === 'onlineUsersSync') {
+    updateBar();
+  }
 });
+
+// Inisialisasi
 updateBar();
 
-function login(e){
+function login(e) {
   e.preventDefault();
-  const u=document.getElementById("username").value.trim().toLowerCase();
-  const p=document.getElementById("password").value;
-  let role=null,list=getOnlineUsers();
+  const u = document.getElementById("username").value.trim().toLowerCase();
+  const p = document.getElementById("password").value;
+  let role = null;
+  const onlineUsers = getOnlineUsers();
 
-  if(u==="altra"){ // admin, no password, no slot
-    role="admin";
-  }else if(/^user([1-9]|10)$/.test(u) && p===PASS){
-    role="user";
-    if(list.includes(u)){return showMsg("❌ Username sedang digunakan.");}
-    if(list.length>=MAX_USER){return showMsg("❌ Slot penuh. Coba lagi nanti.");}
-    list.push(u); 
-    sessionStorage.setItem("onlineUsers", JSON.stringify(list));
-    
-    // Broadcast ke tab lain
-    localStorage.setItem("onlineUsers", JSON.stringify(list));
-    localStorage.removeItem("onlineUsers");
-  }else{
+  if (u === "altra") { // admin
+    role = "admin";
+  } else if (/^user([1-9]|10)$/.test(u) && p === PASS) {
+    role = "user";
+    if (onlineUsers.includes(u)) {
+      return showMsg("❌ Username sedang digunakan.");
+    }
+    if (onlineUsers.length >= MAX_USER) {
+      return showMsg("❌ Slot penuh. Coba lagi nanti.");
+    }
+    // Tambahkan user ke daftar online
+    onlineUsers.push(u);
+    setOnlineUsers(onlineUsers);
+  } else {
     return showMsg("❌ Username / password salah.");
   }
 
-  sessionStorage.setItem("currentUser",u);
-  sessionStorage.setItem("role",role);
-  window.location="index.html";
+  sessionStorage.setItem("currentUser", u);
+  sessionStorage.setItem("role", role);
+  window.location = "dashboard.html";
 }
-function showMsg(t){msg.textContent=t;msg.style.display="block";setTimeout(()=>msg.style.display="none",3000);}
 
-// Keluarkan dari slot saat tab ditutup
-window.addEventListener("beforeunload",()=>{
-  const u=sessionStorage.getItem("currentUser");if(!u||u==="altra")return;
-  let list=getOnlineUsers();
-  list = list.filter(x=>x!==u);
-  sessionStorage.setItem("onlineUsers",JSON.stringify(list));
+function showMsg(t) {
+  msg.textContent = t;
+  msg.style.display = "block";
+  setTimeout(() => msg.style.display = "none", 3000);
+}
+
+// Saat tab ditutup, hapus user dari daftar online
+window.addEventListener('beforeunload', () => {
+  const u = sessionStorage.getItem("currentUser");
+  if (!u || u === "altra") return;
   
-  // Broadcast perubahan
-  localStorage.setItem("onlineUsers",JSON.stringify(list));
-  localStorage.removeItem("onlineUsers");
+  const onlineUsers = getOnlineUsers();
+  const newUsers = onlineUsers.filter(user => user !== u);
+  if (onlineUsers.length !== newUsers.length) {
+    setOnlineUsers(newUsers);
+  }
 });
 </script>
 </body>
